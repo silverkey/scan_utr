@@ -6,22 +6,48 @@ use Data::Dumper;
 use Bio::SeqIO;
 
 # DEFAULTS
-my $UTR_FASTA = 'PIPPO';
-my $MIR_FASTA = 'PLUTO';
+my $DIR = '/Users/Remo/Desktop/NIETTA_MIR/';
+my $UTR_FASTA = '3_UTR_ensembl_58.txt';
+my $MIR_FASTA = 'mir.fa';
+my $OUT = 'scan_utr.xls';
 
 my $result = GetOptions ('utr_fasta|u=s' => \$UTR_FASTA,
-                         'mir_fasta|m=s' => \$MIR_FASTA);
+                         'mir_fasta|m=s' => \$MIR_FASTA,
+                         'output|o=s' => \$OUT,
+                         'dir|d=s' => \$DIR);
 
-print "utr_fasta: $UTR_FASTA\n";
-print "mir_fasta: $MIR_FASTA\n";
+chdir($DIR);
+open(OUT,">$OUT");
+print OUT "gene_id\tmiRNA_id\t7mer\-A1\t7mer-m8\t8mer\n";
+
+my $UTR = Bio::SeqIO->new(-file => $UTR_FASTA,
+                          -format => 'fasta');
+
+my $MIR = Bio::SeqIO->new(-file => $MIR_FASTA,
+                          -format => 'fasta');
+
+my $mirna_seqs = get_mirna();
+
+while(my $seq = $UTR->next_seq) {
+  foreach my $id(keys %$mirna_seqs) {
+    my $counts = scan_utr($seq->seq,$mirna_seqs->{$id});
+    my @res = ($seq->id,$id,$counts->{'7mer-A1'}->{count},$counts->{'7mer-m8'}->{count},$counts->{'8mer'}->{count});
+    my $newrow = join("\t",@res);
+    print OUT "$newrow\n";
+  }
+}
+
+close(OUT);
+
 exit;
 
-print OUT "probe_id\tscore\trefseq_id\t7mer\-A1\t7mer-m8\t8mer\n";
-
-# my $counts = scan_utr($utr->{seq},$mirna->seq);
-# my @res = ($probe_id,$score,$utr->{refseq_id},$counts->{'7mer-A1'}->{count},$counts->{'7mer-m8'}->{count},$counts->{'8mer'}->{count});
-# my $newrow = join("\t",@res);
-# print OUT "$newrow\n";
+sub get_mirna {
+  my $href = {};
+  while(my $seq = $MIR->next_seq) {
+    $href->{$seq->id} = $seq->seq;
+  }
+  return $href;
+}
 
 sub scan_utr {
 
