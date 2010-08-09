@@ -5,20 +5,35 @@ use Getopt::Long;
 use Data::Dumper;
 use Bio::SeqIO;
 
+# Specific to work on data downloaded from mart using a second mart export with another species to
+# get symbol or in any case xrefs with the name of the gene.
+
+# Therefore the ANNOTATION file should contain:
+# column 1: the ensembl gene stable id for the specie with the xrefs
+# column 2: the ensembl gene stable id of the homolog species from which the 3'UTR are in analysis
+# column 3: the xref (external database name)
+
+# The UTR_FASTA from biomart have to contain in the id field:
+# [ensembl gene stable id]|[ensembl transcript stable id]
+
+# All the files but not the script have to be in the same directory ($DIR)
+
 # DEFAULTS
 my $DIR = '/Users/Remo/Desktop/NIETTA_MIR/';
-my $UTR_FASTA = '3_UTR_ensembl_58.txt';
+my $UTR_FASTA = '3_UTR_ensembl_59.txt';
+my $ANNOTATION = 'annotations_59.txt';
 my $MIR_FASTA = 'mir.fa';
-my $OUT = 'scan_utr.xls';
+my $OUT = 'scan_utr_59.xls';
 
 my $result = GetOptions ('utr_fasta|u=s' => \$UTR_FASTA,
+                         'annotations|a=s' => \$ANNOTATION,
                          'mir_fasta|m=s' => \$MIR_FASTA,
                          'output|o=s' => \$OUT,
                          'dir|d=s' => \$DIR);
 
 chdir($DIR);
 open(OUT,">$OUT");
-print OUT "gene_id\tmiRNA_id\t7mer\-A1\t7mer-m8\t8mer\tTOT\n";
+print OUT "transcript_id\thuman_homolog\tmiRNA_id\t7mer\-A1\t7mer-m8\t8mer\tTOTAL\n";
 
 my $UTR = Bio::SeqIO->new(-file => $UTR_FASTA,
                           -format => 'fasta');
@@ -28,18 +43,37 @@ my $MIR = Bio::SeqIO->new(-file => $MIR_FASTA,
 
 my $mirna_seqs = get_mirna();
 
+my $ANN = learn_annotation();
+
 while(my $seq = $UTR->next_seq) {
+  my @ref = split(/\|/,$seq->id);
+  my $gid = $ref[0]; # gene stable id
+  my $tid = $ref[1]; # transcript stable id
   foreach my $id(keys %$mirna_seqs) {
     my $counts = scan_utr($seq->seq,$mirna_seqs->{$id});
-    my @res = ($seq->id,$id,$counts->{'7mer-A1'}->{count},$counts->{'7mer-m8'}->{count},$counts->{'8mer'}->{count},($counts->{'7mer-A1'}->{count}+$counts->{'7mer-m8'}->{count}+$counts->{'8mer'}->{count}));
-    my $newrow = join("\t",@res);
-    print OUT "$newrow\n";
+    my $sum = $counts->{'7mer-A1'}->{count}+$counts->{'7mer-m8'}->{count}+$counts->{'8mer'}->{count};
+    my $ann = $ANN->{$gid} || ' ';
+    print OUT join("\t",($tid,$ann,$id,$counts->{'7mer-A1'}->{count},$counts->{'7mer-m8'}->{count},$counts->{'8mer'}->{count},$sum));
+    print OUT "\n";
   }
 }
 
 close(OUT);
 
 exit;
+
+sub learn_annotation {
+  my $HREF = {};
+  open(IN,$ANNOTATION);
+  my $head = <IN>;
+  while(my $row = <IN>) {
+    chomp($row);
+    my @field = split(/\t/,$row);
+    next unless $field[1];
+    $HREF->{$field[1]} = $field[2];
+  }
+  return $HREF;
+}
 
 sub get_mirna {
   my $href = {};
