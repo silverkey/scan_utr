@@ -6,10 +6,10 @@ use Data::Dumper;
 use Bio::SeqIO;
 
 # DEFAULTS
-my $DIR = '/Users/remo/ANALYSIS/mmmir124';
-my $UTR_FASTA = '/Users/remo/ANALYSIS/mmmir124/mm_pans.txt';
-my $MIR_FASTA = '/Users/remo/ANALYSIS/mmmir124/mus_musculus.mirbase';
-my $OUT = 'scan_mmpans_mm_mirbase.xls';
+my $DIR = '/Users/Remo/Desktop/NIETTA_MIR/';
+my $UTR_FASTA = '3_UTR_ensembl_58.txt';
+my $MIR_FASTA = 'mir.fa';
+my $OUT = 'scan_utr.xls';
 
 my $result = GetOptions ('utr_fasta|u=s' => \$UTR_FASTA,
                          'mir_fasta|m=s' => \$MIR_FASTA,
@@ -18,7 +18,7 @@ my $result = GetOptions ('utr_fasta|u=s' => \$UTR_FASTA,
 
 chdir($DIR);
 open(OUT,">$OUT");
-print OUT "gene_id\ttranscript_id\tmiRNA_id\t7mer\-A1\t7mer-m8\t8mer\tTOT\n";
+print OUT "gene_id\tmiRNA_id\t7mer\-A1\t7mer-m8\t8mer\tTOT\n";
 
 my $UTR = Bio::SeqIO->new(-file => $UTR_FASTA,
                           -format => 'fasta');
@@ -29,14 +29,11 @@ my $MIR = Bio::SeqIO->new(-file => $MIR_FASTA,
 my $mirna_seqs = get_mirna();
 
 while(my $seq = $UTR->next_seq) {
-  my @ref = split(/\|/,$seq->id);
-  my $gid = $ref[0]; # gene stable id
-  my $tid = $ref[1]; # transcript stable id
   foreach my $id(keys %$mirna_seqs) {
     my $counts = scan_utr($seq->seq,$mirna_seqs->{$id});
-    my $sum = $counts->{'7mer-A1'}->{count}+$counts->{'7mer-m8'}->{count}+$counts->{'8mer'}->{count};
-    print OUT join("\t",($gid,$tid,$id,$counts->{'7mer-A1'}->{count},$counts->{'7mer-m8'}->{count},$counts->{'8mer'}->{count},$sum));
-    print OUT "\n";
+    my @res = ($seq->id,$id,$counts->{'7mer-A1'}->{count},$counts->{'7mer-m8'}->{count},$counts->{'8mer'}->{count},($counts->{'7mer-A1'}->{count}+$counts->{'7mer-m8'}->{count}+$counts->{'8mer'}->{count}));
+    my $newrow = join("\t",@res);
+    print OUT "$newrow\n";
   }
 }
 
