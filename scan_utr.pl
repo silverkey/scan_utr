@@ -1,24 +1,19 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-use Getopt::Long;
-use Data::Dumper;
 use Bio::SeqIO;
 
-# DEFAULTS
-my $DIR = '/Users/remo/ANALYSIS/mmmir124';
-my $UTR_FASTA = '/Users/remo/ANALYSIS/mmmir124/mm_pans.txt';
-my $MIR_FASTA = '/Users/remo/ANALYSIS/mmmir124/mus_musculus.mirbase';
-my $OUT = 'scan_mmpans_mm_mirbase.xls';
+my $usage = "\n\tUsage: perl $0 [fasta UTR] [fasta mirbase] [output]\n\n";
+die $usage unless scalar(@ARGV) == 3;
+die $usage unless -e $ARGV[0];
+die $usage unless -e $ARGV[1];
 
-my $result = GetOptions ('utr_fasta|u=s' => \$UTR_FASTA,
-                         'mir_fasta|m=s' => \$MIR_FASTA,
-                         'output|o=s' => \$OUT,
-                         'dir|d=s' => \$DIR);
+my $UTR_FASTA = $ARGV[0];
+my $MIR_FASTA = $ARGV[1];
+my $OUT = $ARGV[2];
 
-chdir($DIR);
 open(OUT,">$OUT");
-print OUT "gene_id\ttranscript_id\tmiRNA_id\t7mer\-A1\t7mer-m8\t8mer\tTOT\n";
+print OUT "transcript_id\tmiRNA_id\t7mer\-A1\t7mer-m8\t8mer\tTOT\n";
 
 my $UTR = Bio::SeqIO->new(-file => $UTR_FASTA,
                           -format => 'fasta');
@@ -29,13 +24,11 @@ my $MIR = Bio::SeqIO->new(-file => $MIR_FASTA,
 my $mirna_seqs = get_mirna();
 
 while(my $seq = $UTR->next_seq) {
-  my @ref = split(/\|/,$seq->id);
-  my $gid = $ref[0]; # gene stable id
-  my $tid = $ref[1]; # transcript stable id
+  my $tid = $seq->id;
   foreach my $id(keys %$mirna_seqs) {
     my $counts = scan_utr($seq->seq,$mirna_seqs->{$id});
     my $sum = $counts->{'7mer-A1'}->{count}+$counts->{'7mer-m8'}->{count}+$counts->{'8mer'}->{count};
-    print OUT join("\t",($gid,$tid,$id,$counts->{'7mer-A1'}->{count},$counts->{'7mer-m8'}->{count},$counts->{'8mer'}->{count},$sum));
+    print OUT join("\t",($tid,$id,$counts->{'7mer-A1'}->{count},$counts->{'7mer-m8'}->{count},$counts->{'8mer'}->{count},$sum));
     print OUT "\n";
   }
 }

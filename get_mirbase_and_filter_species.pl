@@ -1,22 +1,19 @@
 #!/usr/bin/perl
 use strict;
 use warnings;
-use Getopt::Long;
-use Data::Dumper;
 use Bio::SeqIO;
 
-# DEFAULTS
-my $SPECIES = 'Mus musculus';
-my $DIR = '/Users/remo/ANALYSIS/mmmir124';
-my $result = GetOptions ('species|s=s' => \$SPECIES,
-                         'dir|d=s' => \$DIR);
+my $usage = "\n\tUsage: perl $0 [species] [download mirbase? (1 or 0)]\n\n";
+die $usage unless scalar(@ARGV) == 2;
+die $usage unless $ARGV[0] =~ /^[A-Z][a-z]+ [a-z]+$/;
 
-# ORGANIZATION
-chdir($DIR);
+my $SPECIES = $ARGV[0];
+my $DOWNLOAD = $ARGV[2];
+
 my $OUTNAME = lc("$SPECIES\.mirbase");
 $OUTNAME =~ s/ /\_/g;
 
-download_mirbase();
+download_mirbase() if $DOWNLOAD;
 parse_mirbase();
 
 sub download_mirbase {
